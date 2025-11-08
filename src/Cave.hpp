@@ -11,7 +11,7 @@ struct Cave {
     float margin = 30.f; // Margin from top and bottom
     float scroll = 0.f; // Horizontal scroll position
     float gapJitter = 60.f; // Amplitude of gap size variation
-    float gapFreq = 0.0018f; // Frequency of gap size variation
+    float gapFreq = 0.0025f; // Frequency of gap size variation
 
     // Constructor to initialize cave parameters
     Cave() = default;
@@ -29,21 +29,24 @@ struct Cave {
     void sample(int W, int H, float x, float& topY, float& botY) const {
         const float xWorld = scroll + x;
     
-        // 1) centerline meander (your existing line)
+        // Center path (new)
         const float center = H * 0.5f + pathAmp * std::sin(pathFreq * xWorld);
     
-        // 2) breathing gap (new)
+        // Compute the gap size with jitter
         float gap = baseGap + gapJitter * std::sin(gapFreq * xWorld + 2.0f);
-        if (gap < 80.f) gap = 80.f; // safety floor
+        if (gap < 80.f) {
+            gap = 80.f; // safety floor
+        }
     
-        // 3) compute walls
+        // Compute top and bottom Y positions
         float top = center - gap * 0.5f;
         float bot = center + gap * 0.5f;
     
-        // 4) keep some margin off edges
+        // Apply margins to top and bottom 
         top = std::max(margin, top);
         bot = std::min((float)H - margin, bot);
     
+        // Output the sampled top and bottom Y positions
         topY = top; botY = bot;
     }
 };

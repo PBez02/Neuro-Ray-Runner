@@ -171,7 +171,7 @@ int main() {
 
         float angle = atan2(-vy, VX); // Calculate angle based on velocity
 
-        SDL_SetRenderDrawColor(renderer, 255,255,255,255); // White
+        SDL_SetRenderDrawColor(renderer, 173, 216, 230, 255); // White
         drawArrow(renderer, x, y, angle, ARROW_SIZE); // Draw the player arrow
         char scoreText[64];
         char bestText[64];
