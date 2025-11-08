@@ -1,7 +1,21 @@
 #include <SDL2/SDL.h>
 #include <cmath>
 #include "Cave.hpp"
+#include <SDL2/SDL_ttf.h>
+#include <string>
+
 using namespace std;
+
+// Function to draw text on the screen
+static void drawText(SDL_Renderer* renderer, TTF_Font* font, const char* text, int x, int y) {
+    SDL_Color color = {255, 255, 255, 255}; // White color
+    SDL_Surface* surface = TTF_RenderText_Blended(font, text, color); // Render text to surface
+    SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer, surface); // Create texture from surface
+    SDL_Rect destRectangle = {x, y, surface->w, surface->h}; // Destination rectangle
+    SDL_FreeSurface(surface); // Free the surface
+    SDL_RenderCopy(renderer, texture, nullptr, &destRectangle); // Copy texture to renderer
+    SDL_DestroyTexture(texture); // Destroy the texture
+}
 
 // Function to draw an arrow at (x, y) with given angle and size
 static void drawArrow(SDL_Renderer* renderer, float x, float y, float angle, float size) {
@@ -30,6 +44,13 @@ static void drawArrow(SDL_Renderer* renderer, float x, float y, float angle, flo
 
 int main() {
     SDL_Init(SDL_INIT_VIDEO); // Initialize SDL2
+    TTF_Init(); // Initialize SDL_ttf
+    TTF_Font* font = TTF_OpenFont("/Library/Fonts/Arial Unicode.ttf", 22); // Load font
+    if (!font) {
+        SDL_Log("TTF_OpenFont failed: %s", TTF_GetError());
+        // fail fast to avoid segfaults
+        return 1;
+    }
     // Create an application window with the following settings:
     SDL_Window* window = SDL_CreateWindow("Neuro Ray Runner", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 800, 600, SDL_WINDOW_SHOWN);
 
@@ -43,15 +64,24 @@ int main() {
     Uint64 prev = SDL_GetPerformanceCounter(); // Previous performance counter
     const double freq = (double)SDL_GetPerformanceFrequency(); // Performance frequency
 
+    const float VX = 260.f;
+    const float VY = 260.f;
+
+    // Game variables
+    const float PIXELS_PER_POINT = 50.f; // Pixels per point for scoring
+    float pxAcc = 0.0f; // Accumulated horizontal distance
+    int score = 0; // Current score
+    int highScore = 0; // Player score
+
     // Player variables
-    float x = 120.f; 
+    int W = 800;
+    int H = 600;
+    float x = 240.f; 
     float y = 300.f; // Positions
     float vy = 0.f; // Vertical velocity
-    float vx = 220.f; // Horizontal velocity
+    float vx = VX; // Horizontal velocity
+    bool alive = true; // Is player alive
 
-    const float ACC_UP = 800.f; // Upward acceleration
-    const float ACC_DOWN = -600.f; // Downward acceleration
-    const float MAXV = 900.f; // Maximum vertical velocity
     const float ARROW_SIZE = 20.f; // Size of the arrow
 
     // Create a boolean variable to control the loop
@@ -80,24 +110,23 @@ int main() {
         bool space = keystate[SDL_SCANCODE_SPACE]; // Check if spacebar is pressed
 
         // Update player physics
-        float ay;
         if (space) {
-            ay = ACC_UP; // Upward acceleration when space is pressed
+            vy = VY; // Upward acceleration when space is pressed
         } else {
-            ay = ACC_DOWN; // Downward acceleration otherwise
+            vy = -VY; // Downward acceleration otherwise
         }
 
-        vy += ay * deltaTime; // Update vertical velocity
-        if (vy > MAXV) {
-            vy = MAXV; // Cap maximum downward velocity
-        }
-        if (vy < -MAXV) {
-            vy = -MAXV; // Cap maximum upward velocity
-        }
         y -= vy * deltaTime; // Update vertical position
-        x += vx * deltaTime; // Update horizontal position
 
-        cave.update(vx, deltaTime); // Update cave scroll
+        cave.update(VX, deltaTime); // Update cave scroll
+
+        // Keep player within window bounds
+        if (y < ARROW_SIZE) {
+            y = ARROW_SIZE; // Top boundary
+        }
+        if (y > H - ARROW_SIZE) {
+            y = H - ARROW_SIZE; // Bottom boundary
+        }
 
         // Bounds checking
         int W;
@@ -115,27 +144,48 @@ int main() {
             SDL_RenderDrawLineF(renderer, xPix, 0.f, xPix, topY); // Top wall
             SDL_RenderDrawLineF(renderer, xPix, botY, xPix, (float)H); // Bottom wall
         }
-        if (y < ARROW_SIZE) {
-            y = ARROW_SIZE; // Top boundary
-            vy = 0.f; // Stop upward movement
-        }
-        if (y > H - ARROW_SIZE) {
-            y = H - ARROW_SIZE; // Bottom boundary
-            vy = 0.f; // Stop downward movement
-        }
-        if (x > W + ARROW_SIZE) {
-            x = -ARROW_SIZE; // Wrap around horizontally
+
+        // Simple collision at player's fixed screen X
+        float topY;
+        float botY;
+        cave.sample(W, H, x, topY, botY);
+        if (y < topY || y > botY) { // Collision detected
+            alive = false; // Player is dead
+            if (score > highScore) {
+                highScore = score; // Update high score
+            }
+            score = 0; // Reset score
+            pxAcc = 0.0f; // Reset distance
+            y = H * 0.5f; // Reset player position
+            cave.scroll = 0.f; // Reset cave scroll
+            alive = true; // Revive player
         }
 
-        float angle = atan2(-vy, vx); // Calculate angle based on velocity
+        if (alive) {
+            pxAcc += VX * deltaTime; // Accumulate horizontal distance
+            while( pxAcc >= PIXELS_PER_POINT ) {
+                score += 1; // Increase score
+                pxAcc -= PIXELS_PER_POINT; // Decrease accumulated distance
+            }
+        }
+
+        float angle = atan2(-vy, VX); // Calculate angle based on velocity
 
         SDL_SetRenderDrawColor(renderer, 255,255,255,255); // White
         drawArrow(renderer, x, y, angle, ARROW_SIZE); // Draw the player arrow
+        char scoreText[64];
+        char bestText[64];
+        snprintf(scoreText, sizeof(scoreText), "Score: %d", score); // Prepare score text
+        snprintf(bestText, sizeof(bestText), "High Score: %d", highScore); // Prepare high score text
+        drawText(renderer, font, scoreText, W - 160, 16); // Draw score
+        drawText(renderer, font, bestText, W - 200, 42); // Draw high score
         SDL_RenderPresent(renderer); // Update the screen
         SDL_Delay(16); // Roughly 60 FPS  
 
     }
     // Clean up and quit SDL2
+    TTF_CloseFont(font); // Close the font
+    TTF_Quit(); // Quit SDL_ttf
     SDL_DestroyRenderer(renderer); // Destroy the renderer
     SDL_DestroyWindow(window); // Destroy the window
     SDL_Quit(); // Quit SDL2
