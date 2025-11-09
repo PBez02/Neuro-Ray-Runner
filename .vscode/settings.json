@@ -62,6 +62,9 @@
         "concepts": "cpp",
         "numeric": "cpp",
         "random": "cpp",
-        "algorithm": "cpp"
+        "algorithm": "cpp",
+        "queue": "cpp",
+        "stack": "cpp",
+        "filesystem": "cpp"
     }
 }
