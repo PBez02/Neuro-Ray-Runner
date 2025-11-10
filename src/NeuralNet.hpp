@@ -9,7 +9,7 @@ using std::mt19937;
 using std::uniform_real_distribution;
 using std::normal_distribution;
 
-// Simple feedforward neural network with step activation function
+// == Nueron ==
 struct Neuron { // Single neuron
     vector<float> weights; // Flattened weight matrix
 
@@ -27,7 +27,7 @@ struct Neuron { // Single neuron
     }
 };
 
-// Layer of neurons
+// == Layer of neurons ==
 struct Layer {
     vector<Neuron> neurons; // Neurons in this layer
 
@@ -41,7 +41,7 @@ struct Layer {
     }
 };
 
-// Neural network structure
+// == Neural Network ==
 struct Net {
     vector<Layer> layers; // Layers in the network
 
@@ -68,7 +68,7 @@ struct Net {
         }
     }
 
-    // Forward pass through the network
+    // -- Forward pass through the network --
     float forward(vector<float> x) const { // Input vector
         for (const Layer& layer : layers) { // For each layer
             x = layer.forward(x); // Forward pass through each layer
@@ -79,12 +79,12 @@ struct Net {
         return x[0]; // Return first output
     }
 
-    // Decision on whether or not to move up based on network output
+    // -- Decision based on output --
     bool upDecision(const vector<float>& x) const {
         return forward(x) > 0.f; // Decision based on output
     }
 
-    // Mutate the network weights
+    // -- Mutation for evolutionary strategies --
     void mutate(std::mt19937& rng, float sigma, float prob) {
         normal_distribution<float> dist(0.f, sigma); // Gaussian distribution for mutation
         uniform_real_distribution<float> probDist(0.0f, 1.0f); // Uniform distribution for mutation probability
@@ -102,6 +102,7 @@ struct Net {
         }
     }
 
+    // -- Copy weights from another network --
     void copyWeightsFrom(const Net& other) {
         layers.resize(other.layers.size()); // Resize layers
         for (size_t l = 0; l < other.layers.size(); l++) { // For each layer

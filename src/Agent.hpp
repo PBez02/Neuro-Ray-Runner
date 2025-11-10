@@ -27,6 +27,7 @@ inline void reset_run(float &y, float ARROW_SIZE, int H, float& pxAcc, int& scor
     vy = 0.f; // Reset vertical velocity
 }
 
+// Evolve the population of agents using fitness-proportionate selection and mutation
 inline void evolve(vector<Agent>& agents, std::mt19937& rng, int eliteCount, 
         float mutationSigma, float mutationProb, int& generation, 
         float& bestFitness) {
